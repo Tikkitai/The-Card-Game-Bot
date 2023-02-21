@@ -4,6 +4,7 @@ from os import getenv, listdir
 import functions
 import asyncio
 import threading
+import uno
 
 def start():
 
@@ -17,6 +18,7 @@ def start():
     botIntents = discord.Intents.default()
     botIntents.guilds = True
     botIntents.members = True
+    botIntents.message_content = True
 
     ''' Client Variables '''
     global client
@@ -26,9 +28,11 @@ def start():
 
     ''' Dynamic Variables '''
     global commandList
+    global emojis
     global pendingUNOgames
     global UNOGameCount
     commandList = []
+    emojis = {}
     pendingUNOgames = []
     UNOGameCount = 0
 
@@ -53,6 +57,11 @@ def start():
                                     f'commands.{command[:-3]}.import_command()')
                                 commandList.append(command)
 
+        ''' Load Emojis '''
+        for guild in client.guilds:
+            for emoji in guild.emojis:
+                emojis[f':{emoji.name}:'] = emoji
+
         ''' Sync Commands '''
         await commands.sync()
 
@@ -65,25 +74,18 @@ def start():
         for game in pendingUNOgames:
             if reaction.message == game.message and user == game.leader and reaction.emoji == '👍':
                 pendingUNOgames.remove(game)
-                for guild in client.guilds:
-                    global exists
-                    exists = False
-                    for category in guild.categories:
-                        if 'UNO' in category.name:
-                            exists = True
-                            global UNOGameCount
-                            UNOGameCount += 1
-                            gameChannel = await category.create_text_channel(f'uno-game-{UNOGameCount}')
-                            # gameStartMessage = await gameChannel.send('`UNO Game Start`')
-                            for reactions in reaction.message.reactions:
-                                if reactions.emoji == '✅':
-                                    async for participant in reactions.users():
-                                        if not participant.bot:
-                                            thread = await gameChannel.create_thread(name=participant.name, type=discord.ChannelType.private_thread)
-                                            await thread.send(participant.mention)
-                        
+                await uno.startGame(client, reaction, game, emojis)
 
-        
+    @client.event
+    async def on_message(message):
+        if not message.author.bot:
+            for guild in client.guilds:
+                for category in guild.categories:
+                    if category.name == 'UNO':
+                        for channel in category.text_channels:
+                            for thread in channel.threads:
+                                if thread == message.channel:
+                                    await uno.play(channel, message, emojis)
 
     ''' Deploy Bot '''
     client.run(TOKEN)

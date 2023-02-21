@@ -85,7 +85,7 @@ def start():
                         for channel in category.text_channels:
                             for thread in channel.threads:
                                 if thread == message.channel:
-                                    await uno.play(channel, message, emojis)
+                                    await uno.play(client, channel, message, emojis)
 
     ''' Deploy Bot '''
     client.run(TOKEN)

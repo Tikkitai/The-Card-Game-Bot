@@ -90,6 +90,8 @@ class unoGame():
                 self.deck.remove(card)
 
         self.participants = participants
+        self.playOrder = 'cw'
+        self.currentPlayer: unoGame.participant
 
         drawnCard = random.choice(self.deck)
         self.currentCard = drawnCard

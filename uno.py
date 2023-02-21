@@ -31,17 +31,26 @@ async def startGame(client: discord.Client, reaction: discord.Reaction, game: fu
                             if not user.bot:
                                 users.append(user)
                         unoGame = functions.unoGame(gameChannel,game.leader,users)
+                        playOrderMessage = 'Current Play Order:'
+                        a = 0
                         for participant in unoGame.participants:
                             participant: functions.unoGame.participant
                             if not participant.user.bot:
                                 thread = await gameChannel.create_thread(name=participant.user.name, type=discord.ChannelType.private_thread)
                                 await thread.send(participant.user.mention)
                                 await showHand(client, participant, thread, emojis)
+                                a += 1
+                                if a == 1:
+                                    playOrderMessage += f'\n{a}: **{participant.user.display_name}**'
+                                    unoGame.currentPlayer = participant
+                                else: playOrderMessage += f'\n{a}: {participant.user.display_name}'
+                        await gameChannel.send(playOrderMessage)
                         await gameChannel.send(f'Current Card:')
                         await gameChannel.send(functions.getCardEmoji(unoGame.currentCard.color, unoGame.currentCard.type, unoGame.currentCard.number, emojis))
+                        await gameChannel.send(f'**It is now {unoGame.currentPlayer.user.mention}\'s Turn**')
                         currentGames[f'uno-game-{UNOGameCount}'] = unoGame
 
-async def play(channel: discord.TextChannel, message: discord.Message, emojis: dict):
+async def play(client: discord.Client, channel: discord.TextChannel, message: discord.Message, emojis: dict):
     unoGame: functions.unoGame = currentGames[channel.name]
     colors = [
             'red',
@@ -76,23 +85,35 @@ async def play(channel: discord.TextChannel, message: discord.Message, emojis: d
                     found2 = False
                     for participant in unoGame.participants:
                         participant: functions.unoGame.participant
-                        if message.author == participant.user:
+                        if message.author == participant.user and participant == unoGame.currentPlayer:
                             for card in participant.hand:
                                 card: functions.unoGame.card
                                 if card.color == specifiedCard.color and card.number == specifiedCard.number and card.type == specifiedCard.type:
-                                    print('you have this card')
                                     if specifiedCard.color == unoGame.currentCard.color or specifiedCard.number == unoGame.currentCard.number or specifiedCard.color == 'wild':
-                                        print('card valid')
-                                        await message.channel.send('you can play that card')
+                                        unoGame.currentCard = specifiedCard
+                                        participant.hand.remove(card)
+                                        try:
+                                            unoGame.currentPlayer = unoGame.participants[unoGame.participants.index(unoGame.currentPlayer)+1]
+                                        except IndexError:
+                                            unoGame.currentPlayer = unoGame.participants[0]
+                                        for participant in unoGame.participants:
+                                            participant: functions.unoGame.participant
+                                            if not participant.user.bot:
+                                                for guild in client.guilds:
+                                                    for category in guild.categories:
+                                                        if category.name == 'UNO':
+                                                            for channel in category.text_channels:
+                                                                for thread in channel.threads:
+                                                                    if thread.name == participant.user.display_name:
+                                                                        await showHand(client, participant, thread, emojis)
+                                        await unoGame.channel.send(f'Current Card:')
+                                        await unoGame.channel.send(functions.getCardEmoji(unoGame.currentCard.color, unoGame.currentCard.type, unoGame.currentCard.number, emojis))
+                                        await unoGame.channel.send(f'**It is now {unoGame.currentPlayer.user.mention}\'s Turn**')
+                                        currentGames[f'uno-game-{UNOGameCount}'] = unoGame
                                         found2 = True
                                     else:
-                                        print('card invalid')
-                                        await message.channel.send('you cannot play that card')
+                                        await message.channel.send('You Cannot Play That Card')
                                         found2 = True
-                                else:
-                                    print('you dont have this card')
-                                    await message.channel.send('you dont have this card')
-                                    found2 = True
                                 if found2: break
                         if found2: break
                 if found: break
@@ -101,6 +122,9 @@ async def play(channel: discord.TextChannel, message: discord.Message, emojis: d
 
     if not found:
         await message.channel.send('not a card')
+
+    if not found2:
+        await message.channel.send('you dont have this card')
 
 
 

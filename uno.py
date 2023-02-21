@@ -111,6 +111,28 @@ async def play(client: discord.Client, channel: discord.TextChannel, message: di
                                     if card.color == specifiedCard.color and card.number == specifiedCard.number and card.type == specifiedCard.type:
                                         if specifiedCard.color == unoGame.currentCard.color or specifiedCard.number == unoGame.currentCard.number or specifiedCard.color == 'wild':
                                             if specifiedCard.number != 10:
+                                                    unoGame.currentCard = specifiedCard
+                                                    participant.hand.remove(card)
+                                                    try:
+                                                        unoGame.currentPlayer = unoGame.participants[unoGame.participants.index(unoGame.currentPlayer)+1]
+                                                    except IndexError:
+                                                        unoGame.currentPlayer = unoGame.participants[0]
+                                                    for participant in unoGame.participants:
+                                                        participant: functions.unoGame.participant
+                                                        if not participant.user.bot:
+                                                            for guild in client.guilds:
+                                                                for category in guild.categories:
+                                                                    if category.name == 'UNO':
+                                                                        for channel in category.text_channels:
+                                                                            for thread in channel.threads:
+                                                                                if thread.name == participant.user.display_name:
+                                                                                    await showHand(client, participant, thread, emojis)
+                                                    await unoGame.channel.send(f'Current Card:')
+                                                    await unoGame.channel.send(functions.getCardEmoji(unoGame.currentCard.color, unoGame.currentCard.type, unoGame.currentCard.number, emojis))
+                                                    await unoGame.channel.send(f'**It is now {unoGame.currentPlayer.user.mention}\'s Turn**')
+                                                    currentGames[f'uno-game-{UNOGameCount}'] = unoGame
+                                                    found2 = True
+                                            elif specifiedCard.color == unoGame.currentCard.color or specifiedCard.type == unoGame.currentCard.type or specifiedCard.color == 'wild':
                                                 if specifiedCard.type == 'pick':
                                                     print('pick')
                                                     for color in colors:
@@ -139,31 +161,7 @@ async def play(client: discord.Client, channel: discord.TextChannel, message: di
                                                             await unoGame.channel.send(f'**It is now {unoGame.currentPlayer.user.mention}\'s Turn**')
                                                             currentGames[f'uno-game-{UNOGameCount}'] = unoGame
                                                             found2 = True
-                                                
-                                                else:
-                                                    unoGame.currentCard = specifiedCard
-                                                    participant.hand.remove(card)
-                                                    try:
-                                                        unoGame.currentPlayer = unoGame.participants[unoGame.participants.index(unoGame.currentPlayer)+1]
-                                                    except IndexError:
-                                                        unoGame.currentPlayer = unoGame.participants[0]
-                                                    for participant in unoGame.participants:
-                                                        participant: functions.unoGame.participant
-                                                        if not participant.user.bot:
-                                                            for guild in client.guilds:
-                                                                for category in guild.categories:
-                                                                    if category.name == 'UNO':
-                                                                        for channel in category.text_channels:
-                                                                            for thread in channel.threads:
-                                                                                if thread.name == participant.user.display_name:
-                                                                                    await showHand(client, participant, thread, emojis)
-                                                    await unoGame.channel.send(f'Current Card:')
-                                                    await unoGame.channel.send(functions.getCardEmoji(unoGame.currentCard.color, unoGame.currentCard.type, unoGame.currentCard.number, emojis))
-                                                    await unoGame.channel.send(f'**It is now {unoGame.currentPlayer.user.mention}\'s Turn**')
-                                                    currentGames[f'uno-game-{UNOGameCount}'] = unoGame
-                                                    found2 = True
-                                            elif specifiedCard.color == unoGame.currentCard.color or specifiedCard.type == unoGame.currentCard.type or specifiedCard.color == 'wild':
-                                                if specifiedCard.type == 'draw':
+                                                elif specifiedCard.type == 'draw':
                                                     print('draw')
                                                     if specifiedCard.color == 'wild':
                                                         for color in colors:
@@ -253,7 +251,7 @@ async def play(client: discord.Client, channel: discord.TextChannel, message: di
                                                 elif specifiedCard.type == 'reverse':
                                                     unoGame.currentCard = specifiedCard
                                                     participant.hand.remove(card)
-                                                    unoGame.participants.sort(reverse=True)
+                                                    unoGame.participants.reverse()
                                                     try:
                                                         unoGame.currentPlayer = unoGame.participants[unoGame.participants.index(unoGame.currentPlayer)+1]
                                                     except IndexError:

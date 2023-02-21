@@ -18,7 +18,7 @@ def import_command():
         description="Get UNO In-Game Syntax"
     )
     async def self(Interaction:discord.Interaction):
-        embed = discord.Embed(title='UNO Game Syntax', description='{card color} {card type / number}')
+        embed = discord.Embed(title='UNO Game Syntax', description='{card color} {card type / number} {chosen color if wild}')
         embed.add_field(name='Card Names', value='Red, Yellow, Green, Blue, Wild', inline=False)
         embed.add_field(name='Type Names', value='Skip, Reverse, Draw, Pick', inline=False)
         embed.add_field(name='Examples', value='Red 7\nBlue Skip\nWild Pick\nGreen Draw\nYellow Reverse', inline=False)

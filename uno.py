@@ -177,7 +177,7 @@ async def play(client: discord.Client, channel: discord.TextChannel, message: di
 
                                     
     ''' Check if using Draw Command '''
-    if message.content.lower() == 'draw':
+    elif message.content.lower() == 'draw':
         for participant in unoGame.participants:
             participant: functions.unoGame.participant
             if message.author == participant.user and participant == unoGame.currentPlayer:

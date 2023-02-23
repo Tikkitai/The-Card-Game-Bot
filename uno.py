@@ -5,12 +5,21 @@ import random
 UNOGameCount = 0
 currentGames = {}
 
-def drawCard(game: functions.unoGame, participant: functions.unoGame.participant, amt: int):
+async def drawCard(game: functions.unoGame, participant: functions.unoGame.participant, amt: int, drawCommand: bool = False):
     rangee = range(amt)
     for draw in rangee:
         cardDrawn = random.choice(game.deck)
         participant.hand.append(cardDrawn)
         game.deck.remove(cardDrawn)
+        cards = ''
+        for card in game.currentPlayer.hand:
+            cards += '<a:back:1075645084583866368>'
+        if drawCommand:
+            async for message in game.channel.history():
+                message: discord.Message
+                if '<a:back:1075645084583866368>' in message.content and message.author.bot:
+                    await message.edit(content=cards)
+                    break
     
 async def showHand(client: discord.Client, participant, thread, emojis: dict):
     message = f'Cards in user `{participant.user.display_name}`s Hand:'
@@ -33,15 +42,20 @@ async def playCard(type: int, client: discord.Client, unoGame: functions.unoGame
     except IndexError:
         unoGame.currentPlayer = unoGame.participants[0]
     if type == 2 or type == 3 or type == 4:
-        if type == 2 or type == 3:
-            if type == 2:
-                drawCard(unoGame, unoGame.currentPlayer, 4)
-                message2 = f'{unoGame.currentPlayer.user.display_name} drew 4'
-            elif type == 3:
-                drawCard(unoGame, unoGame.currentPlayer, 2)
-                message2 = f'{unoGame.currentPlayer.user.display_name} drew 2'
-            elif type == 4:
-                message2 = f'{unoGame.currentPlayer.user.display_name} was Skipped'
+        if type == 2:
+            await drawCard(unoGame, unoGame.currentPlayer, 4)
+            message2 = f'{unoGame.currentPlayer.user.display_name} drew 4'
+            cards = ''
+            for card in unoGame.currentPlayer.hand:
+                cards += '<a:back:1075645084583866368>'
+        elif type == 3:
+            await drawCard(unoGame, unoGame.currentPlayer, 2)
+            message2 = f'{unoGame.currentPlayer.user.display_name} drew 2'
+            cards = ''
+            for card in unoGame.currentPlayer.hand:
+                cards += '<a:back:1075645084583866368>'
+        elif type == 4:
+            message2 = f'{unoGame.currentPlayer.user.display_name} was Skipped'
         try:
             unoGame.currentPlayer = unoGame.participants[unoGame.participants.index(unoGame.currentPlayer)+1]
         except IndexError:
@@ -69,11 +83,17 @@ async def playCard(type: int, client: discord.Client, unoGame: functions.unoGame
     if type == 1 or type == 2 or type == 3 or type == 4:
         if type == 2 or type == 3 or type == 4:
             await unoGame.channel.send(message2)
+            if type == 2 or type == 3:
+                await unoGame.channel.send(cards)
         if type == 1 or type == 2:
             unoGame.currentCard.color = color
             unoGame.currentCard.number = 11
             await unoGame.channel.send(f'Color is now **{color}**')
     await unoGame.channel.send(f'**It is now {unoGame.currentPlayer.user.mention}\'s Turn**')
+    cards = ''
+    for card in unoGame.currentPlayer.hand:
+        cards += '<a:back:1075645084583866368>'
+    await unoGame.channel.send(cards)
     currentGames[f'uno-game-{UNOGameCount}'] = unoGame
 
 async def startGame(client: discord.Client, reaction: discord.Reaction, game: functions.unoGame.pending, emojis: dict):
@@ -110,6 +130,10 @@ async def startGame(client: discord.Client, reaction: discord.Reaction, game: fu
                         await gameChannel.send(f'Current Card:')
                         await gameChannel.send(functions.getCardEmoji(unoGame.currentCard.color, unoGame.currentCard.type, unoGame.currentCard.number, emojis))
                         await gameChannel.send(f'**It is now {unoGame.currentPlayer.user.mention}\'s Turn**')
+                        cards = ''
+                        for card in unoGame.currentPlayer.hand:
+                            cards += '<a:back:1075645084583866368>'
+                        await unoGame.channel.send(cards)
                         currentGames[f'uno-game-{UNOGameCount}'] = unoGame
 
 async def play(client: discord.Client, channel: discord.TextChannel, message: discord.Message, emojis: dict):
@@ -134,7 +158,7 @@ async def play(client: discord.Client, channel: discord.TextChannel, message: di
         for participant in unoGame.participants:
             participant: functions.unoGame.participant
             if message.author == participant.user and participant == unoGame.currentPlayer:
-                drawCard(unoGame, participant, 1)
+                await drawCard(unoGame, participant, 1, True)
                 for guild in client.guilds:
                     for category in guild.categories:
                         if category.name == 'UNO':
@@ -160,84 +184,88 @@ async def play(client: discord.Client, channel: discord.TextChannel, message: di
                         found2 = False
                         for participant in unoGame.participants:
                             participant: functions.unoGame.participant
-                            if message.author == participant.user and participant == unoGame.currentPlayer:
-                                for card in participant.hand:
-                                    card: functions.unoGame.card
-                                    if card.color == specifiedCard.color and card.number == specifiedCard.number and card.type == specifiedCard.type:
-                                        if specifiedCard.color == unoGame.currentCard.color or specifiedCard.number == unoGame.currentCard.number or specifiedCard.color == 'wild':
-                                            # Generic Cards
-                                            if specifiedCard.number != 10:
-                                                await playCard(0, client, unoGame, card, specifiedCard, participant, emojis)
-                                                found2 = True
-                                            # Special Cards
-                                            elif specifiedCard.color == unoGame.currentCard.color or specifiedCard.type == unoGame.currentCard.type or specifiedCard.color == 'wild':
-                                                # Pick Cards
-                                                if specifiedCard.type == 'pick':
-                                                    for color in colors:
-                                                        if message.content.endswith(color):
-                                                            await playCard(1, client, unoGame, card, specifiedCard, participant, emojis, color)
-                                                            found2 = True
-                                                # Draw Cards
-                                                elif specifiedCard.type == 'draw':
-                                                    print('draw')
-                                                    # Wild Draw Four
-                                                    if specifiedCard.color == 'wild':
+                            if message.author == participant.user:
+                                if participant == unoGame.currentPlayer:
+                                    for card in participant.hand:
+                                        card: functions.unoGame.card
+                                        if card.color == specifiedCard.color and card.number == specifiedCard.number and card.type == specifiedCard.type:
+                                            if specifiedCard.color == unoGame.currentCard.color or specifiedCard.number == unoGame.currentCard.number or specifiedCard.color == 'wild':
+                                                # Generic Cards
+                                                if specifiedCard.number != 10:
+                                                    await playCard(0, client, unoGame, card, specifiedCard, participant, emojis)
+                                                    found2 = True
+                                                # Special Cards
+                                                elif specifiedCard.color == unoGame.currentCard.color or specifiedCard.type == unoGame.currentCard.type or specifiedCard.color == 'wild':
+                                                    # Pick Cards
+                                                    if specifiedCard.type == 'pick':
                                                         for color in colors:
                                                             if message.content.endswith(color):
-                                                                await playCard(2, client, unoGame, card, specifiedCard, participant, emojis, color)
+                                                                await playCard(1, client, unoGame, card, specifiedCard, participant, emojis, color)
                                                                 found2 = True
-                                                    else:
-                                                        # Normal Draw Two
-                                                        await playCard(3, client, unoGame, card, specifiedCard, participant, emojis)
-                                                        found2 = True
-                                                # Skip Cards
-                                                elif specifiedCard.type == 'skip':
-                                                    await playCard(4, client, unoGame, card, specifiedCard, participant, emojis)
-                                                    found2 = True
-                                                # Reverse Cards
-                                                elif specifiedCard.type == 'reverse':
-                                                    await playCard(5, client, unoGame, card, specifiedCard, participant, emojis)
-                                                    found2 = True
-                                        # If Wild Card Is Current Card
-                                        elif specifiedCard.color == unoGame.currentCard.color and unoGame.currentCard.number == 11:
-                                            # Generic Cards
-                                            if specifiedCard.number != 10:
-                                                await playCard(0, client, unoGame, card, specifiedCard, participant, emojis)
-                                                found2 = True
-                                            # Special Cards
-                                            elif specifiedCard.color == unoGame.currentCard.color or specifiedCard.type == unoGame.currentCard.type or specifiedCard.color == 'wild':
-                                                # Pick Cards
-                                                if specifiedCard.type == 'pick':
-                                                    for color in colors:
-                                                        if message.content.endswith(color):
-                                                            await playCard(1, client, unoGame, card, specifiedCard, participant, emojis, color)
+                                                    # Draw Cards
+                                                    elif specifiedCard.type == 'draw':
+                                                        print('draw')
+                                                        # Wild Draw Four
+                                                        if specifiedCard.color == 'wild':
+                                                            for color in colors:
+                                                                if message.content.endswith(color):
+                                                                    await playCard(2, client, unoGame, card, specifiedCard, participant, emojis, color)
+                                                                    found2 = True
+                                                        else:
+                                                            # Normal Draw Two
+                                                            await playCard(3, client, unoGame, card, specifiedCard, participant, emojis)
                                                             found2 = True
-                                                # Draw Cards
-                                                elif specifiedCard.type == 'draw':
-                                                    print('draw')
-                                                    # Wild Draw Four
-                                                    if specifiedCard.color == 'wild':
+                                                    # Skip Cards
+                                                    elif specifiedCard.type == 'skip':
+                                                        await playCard(4, client, unoGame, card, specifiedCard, participant, emojis)
+                                                        found2 = True
+                                                    # Reverse Cards
+                                                    elif specifiedCard.type == 'reverse':
+                                                        await playCard(5, client, unoGame, card, specifiedCard, participant, emojis)
+                                                        found2 = True
+                                            # If Wild Card Is Current Card
+                                            elif specifiedCard.color == unoGame.currentCard.color and unoGame.currentCard.number == 11:
+                                                # Generic Cards
+                                                if specifiedCard.number != 10:
+                                                    await playCard(0, client, unoGame, card, specifiedCard, participant, emojis)
+                                                    found2 = True
+                                                # Special Cards
+                                                elif specifiedCard.color == unoGame.currentCard.color or specifiedCard.type == unoGame.currentCard.type or specifiedCard.color == 'wild':
+                                                    # Pick Cards
+                                                    if specifiedCard.type == 'pick':
                                                         for color in colors:
                                                             if message.content.endswith(color):
-                                                                await playCard(2, client, unoGame, card, specifiedCard, participant, emojis, color)
+                                                                await playCard(1, client, unoGame, card, specifiedCard, participant, emojis, color)
                                                                 found2 = True
-                                                    else:
-                                                        # Normal Draw Two
-                                                        await playCard(3, client, unoGame, card, specifiedCard, participant, emojis)
+                                                    # Draw Cards
+                                                    elif specifiedCard.type == 'draw':
+                                                        print('draw')
+                                                        # Wild Draw Four
+                                                        if specifiedCard.color == 'wild':
+                                                            for color in colors:
+                                                                if message.content.endswith(color):
+                                                                    await playCard(2, client, unoGame, card, specifiedCard, participant, emojis, color)
+                                                                    found2 = True
+                                                        else:
+                                                            # Normal Draw Two
+                                                            await playCard(3, client, unoGame, card, specifiedCard, participant, emojis)
+                                                            found2 = True
+                                                    # Skip Cards
+                                                    elif specifiedCard.type == 'skip':
+                                                        await playCard(4, client, unoGame, card, specifiedCard, participant, emojis)
                                                         found2 = True
-                                                # Skip Cards
-                                                elif specifiedCard.type == 'skip':
-                                                    await playCard(4, client, unoGame, card, specifiedCard, participant, emojis)
-                                                    found2 = True
-                                                # Reverse Cards
-                                                elif specifiedCard.type == 'reverse':
-                                                    await playCard(5, client, unoGame, card, specifiedCard, participant, emojis)
-                                                    found2 = True
-                                        else:
-                                            await message.channel.send('You Cannot Play That Card')
-                                            found2 = True
-                                    if found2: break
-                            if found2: break
+                                                    # Reverse Cards
+                                                    elif specifiedCard.type == 'reverse':
+                                                        await playCard(5, client, unoGame, card, specifiedCard, participant, emojis)
+                                                        found2 = True
+                                            else:
+                                                await message.channel.send('You Cannot Play That Card')
+                                                found2 = True
+                                        if found2: break
+                                else:
+                                    await message.channel.send('WAIT YOUR TURN')
+                                    found2 = True
+                                if found2: break
                     if found: break
                 if found: break
             if found: break

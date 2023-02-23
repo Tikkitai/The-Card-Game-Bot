@@ -21,6 +21,61 @@ async def showHand(client: discord.Client, participant, thread, emojis: dict):
     await thread.send(message)
     await thread.send(message2)
 
+async def playCard(type: int, client: discord.Client, unoGame: functions.unoGame, card: functions.unoGame.card, specifiedCard: functions.unoGame.card, player: functions.unoGame.participant, emojis: dict, color: str = ''):
+    unoGame.currentCard = specifiedCard
+    player.hand.remove(card)
+    if type == 5:
+        unoGame.participants.reverse()
+        playOrderMessage = 'Current Play Order:'
+        a = 0
+    try:
+        unoGame.currentPlayer = unoGame.participants[unoGame.participants.index(unoGame.currentPlayer)+1]
+    except IndexError:
+        unoGame.currentPlayer = unoGame.participants[0]
+    if type == 2 or type == 3 or type == 4:
+        if type == 2 or type == 3:
+            if type == 2:
+                drawCard(unoGame, unoGame.currentPlayer, 4)
+                message2 = f'{unoGame.currentPlayer.user.display_name} drew 4'
+            elif type == 3:
+                drawCard(unoGame, unoGame.currentPlayer, 2)
+                message2 = f'{unoGame.currentPlayer.user.display_name} drew 2'
+            elif type == 4:
+                message2 = f'{unoGame.currentPlayer.user.display_name} was Skipped'
+        try:
+            unoGame.currentPlayer = unoGame.participants[unoGame.participants.index(unoGame.currentPlayer)+1]
+        except IndexError:
+            unoGame.currentPlayer = unoGame.participants[0]
+    for participant in unoGame.participants:
+        participant: functions.unoGame.participant
+        if not participant.user.bot:
+            for guild in client.guilds:
+                for category in guild.categories:
+                    if category.name == 'UNO':
+                        for channel in category.text_channels:
+                            for thread in channel.threads:
+                                if thread.name == participant.user.display_name:
+                                    await showHand(client, participant, thread, emojis)
+                                    if type == 5:
+                                        a += 1
+                                        if participant == unoGame.currentPlayer:
+                                            playOrderMessage += f'\n{a}: **{participant.user.display_name}**'
+                                            unoGame.currentPlayer = participant
+                                        else: playOrderMessage += f'\n{a}: {participant.user.display_name}'
+    if type == 5:
+        await unoGame.channel.send(playOrderMessage)
+    await unoGame.channel.send(f'Current Card:')
+    await unoGame.channel.send(functions.getCardEmoji(unoGame.currentCard.color, unoGame.currentCard.type, unoGame.currentCard.number, emojis))
+    if type == 1 or type == 2 or type == 3 or type == 4:
+        if type == 2 or type == 3 or type == 4:
+            await unoGame.channel.send(message2)
+        if type == 1 or type == 2:
+            unoGame.currentCard.color = color
+            unoGame.currentCard.number = 11
+            await unoGame.channel.send(f'Color is now **{color}**')
+    await unoGame.channel.send(f'**It is now {unoGame.currentPlayer.user.mention}\'s Turn**')
+    currentGames[f'uno-game-{UNOGameCount}'] = unoGame
+
 async def startGame(client: discord.Client, reaction: discord.Reaction, game: functions.unoGame.pending, emojis: dict):
     for guild in client.guilds:
         global exists
@@ -110,219 +165,74 @@ async def play(client: discord.Client, channel: discord.TextChannel, message: di
                                     card: functions.unoGame.card
                                     if card.color == specifiedCard.color and card.number == specifiedCard.number and card.type == specifiedCard.type:
                                         if specifiedCard.color == unoGame.currentCard.color or specifiedCard.number == unoGame.currentCard.number or specifiedCard.color == 'wild':
+                                            # Generic Cards
                                             if specifiedCard.number != 10:
-                                                    unoGame.currentCard = specifiedCard
-                                                    participant.hand.remove(card)
-                                                    try:
-                                                        unoGame.currentPlayer = unoGame.participants[unoGame.participants.index(unoGame.currentPlayer)+1]
-                                                    except IndexError:
-                                                        unoGame.currentPlayer = unoGame.participants[0]
-                                                    for participant in unoGame.participants:
-                                                        participant: functions.unoGame.participant
-                                                        if not participant.user.bot:
-                                                            for guild in client.guilds:
-                                                                for category in guild.categories:
-                                                                    if category.name == 'UNO':
-                                                                        for channel in category.text_channels:
-                                                                            for thread in channel.threads:
-                                                                                if thread.name == participant.user.display_name:
-                                                                                    await showHand(client, participant, thread, emojis)
-                                                    await unoGame.channel.send(f'Current Card:')
-                                                    await unoGame.channel.send(functions.getCardEmoji(unoGame.currentCard.color, unoGame.currentCard.type, unoGame.currentCard.number, emojis))
-                                                    await unoGame.channel.send(f'**It is now {unoGame.currentPlayer.user.mention}\'s Turn**')
-                                                    currentGames[f'uno-game-{UNOGameCount}'] = unoGame
-                                                    found2 = True
+                                                await playCard(0, client, unoGame, card, specifiedCard, participant, emojis)
+                                                found2 = True
+                                            # Special Cards
                                             elif specifiedCard.color == unoGame.currentCard.color or specifiedCard.type == unoGame.currentCard.type or specifiedCard.color == 'wild':
+                                                # Pick Cards
                                                 if specifiedCard.type == 'pick':
-                                                    print('pick')
                                                     for color in colors:
                                                         if message.content.endswith(color):
-                                                            unoGame.currentCard = specifiedCard
-                                                            participant.hand.remove(card)
-                                                            try:
-                                                                unoGame.currentPlayer = unoGame.participants[unoGame.participants.index(unoGame.currentPlayer)+1]
-                                                            except IndexError:
-                                                                unoGame.currentPlayer = unoGame.participants[0]
-                                                            for participant in unoGame.participants:
-                                                                participant: functions.unoGame.participant
-                                                                if not participant.user.bot:
-                                                                    for guild in client.guilds:
-                                                                        for category in guild.categories:
-                                                                            if category.name == 'UNO':
-                                                                                for channel in category.text_channels:
-                                                                                    for thread in channel.threads:
-                                                                                        if thread.name == participant.user.display_name:
-                                                                                            await showHand(client, participant, thread, emojis)
-                                                            await unoGame.channel.send(f'Current Card:')
-                                                            await unoGame.channel.send(functions.getCardEmoji(unoGame.currentCard.color, unoGame.currentCard.type, unoGame.currentCard.number, emojis))
-                                                            unoGame.currentCard.color = color
-                                                            unoGame.currentCard.number = 11
-                                                            await unoGame.channel.send(f'Color is now **{color}**')
-                                                            await unoGame.channel.send(f'**It is now {unoGame.currentPlayer.user.mention}\'s Turn**')
-                                                            currentGames[f'uno-game-{UNOGameCount}'] = unoGame
+                                                            await playCard(1, client, unoGame, card, specifiedCard, participant, emojis, color)
                                                             found2 = True
+                                                # Draw Cards
                                                 elif specifiedCard.type == 'draw':
                                                     print('draw')
+                                                    # Wild Draw Four
                                                     if specifiedCard.color == 'wild':
                                                         for color in colors:
                                                             if message.content.endswith(color):
-                                                                unoGame.currentCard = specifiedCard
-                                                                participant.hand.remove(card)
-                                                                try:
-                                                                    unoGame.currentPlayer = unoGame.participants[unoGame.participants.index(unoGame.currentPlayer)+1]
-                                                                except IndexError:
-                                                                    unoGame.currentPlayer = unoGame.participants[0]
-                                                                drawCard(unoGame, unoGame.currentPlayer, 4)
-                                                                try:
-                                                                    unoGame.currentPlayer = unoGame.participants[unoGame.participants.index(unoGame.currentPlayer)+1]
-                                                                except IndexError:
-                                                                    unoGame.currentPlayer = unoGame.participants[0]
-                                                                for participant in unoGame.participants:
-                                                                    participant: functions.unoGame.participant
-                                                                    if not participant.user.bot:
-                                                                        for guild in client.guilds:
-                                                                            for category in guild.categories:
-                                                                                if category.name == 'UNO':
-                                                                                    for channel in category.text_channels:
-                                                                                        for thread in channel.threads:
-                                                                                            if thread.name == participant.user.display_name:
-                                                                                                await showHand(client, participant, thread, emojis)
-                                                                await unoGame.channel.send(f'Current Card:')
-                                                                await unoGame.channel.send(functions.getCardEmoji(unoGame.currentCard.color, unoGame.currentCard.type, unoGame.currentCard.number, emojis))
-                                                                unoGame.currentCard.color = color
-                                                                unoGame.currentCard.number = 11
-                                                                await unoGame.channel.send(f'Color is now **{color}**')
-                                                                await unoGame.channel.send(f'**It is now {unoGame.currentPlayer.user.mention}\'s Turn**')
-                                                                currentGames[f'uno-game-{UNOGameCount}'] = unoGame
+                                                                await playCard(2, client, unoGame, card, specifiedCard, participant, emojis, color)
                                                                 found2 = True
                                                     else:
-                                                        unoGame.currentCard = specifiedCard
-                                                        participant.hand.remove(card)
-                                                        try:
-                                                            unoGame.currentPlayer = unoGame.participants[unoGame.participants.index(unoGame.currentPlayer)+1]
-                                                        except IndexError:
-                                                            unoGame.currentPlayer = unoGame.participants[0]
-                                                        drawCard(unoGame, unoGame.currentPlayer, 2)
-                                                        try:
-                                                            unoGame.currentPlayer = unoGame.participants[unoGame.participants.index(unoGame.currentPlayer)+1]
-                                                        except IndexError:
-                                                            unoGame.currentPlayer = unoGame.participants[0]
-                                                        for participant in unoGame.participants:
-                                                            participant: functions.unoGame.participant
-                                                            if not participant.user.bot:
-                                                                for guild in client.guilds:
-                                                                    for category in guild.categories:
-                                                                        if category.name == 'UNO':
-                                                                            for channel in category.text_channels:
-                                                                                for thread in channel.threads:
-                                                                                    if thread.name == participant.user.display_name:
-                                                                                        await showHand(client, participant, thread, emojis)
-                                                        await unoGame.channel.send(f'Current Card:')
-                                                        await unoGame.channel.send(functions.getCardEmoji(unoGame.currentCard.color, unoGame.currentCard.type, unoGame.currentCard.number, emojis))
-                                                        await unoGame.channel.send(f'**It is now {unoGame.currentPlayer.user.mention}\'s Turn**')
-                                                        currentGames[f'uno-game-{UNOGameCount}'] = unoGame
+                                                        # Normal Draw Two
+                                                        await playCard(3, client, unoGame, card, specifiedCard, participant, emojis)
                                                         found2 = True
+                                                # Skip Cards
                                                 elif specifiedCard.type == 'skip':
-                                                    unoGame.currentCard = specifiedCard
-                                                    participant.hand.remove(card)
-                                                    try:
-                                                        unoGame.currentPlayer = unoGame.participants[unoGame.participants.index(unoGame.currentPlayer)+1]
-                                                    except IndexError:
-                                                        unoGame.currentPlayer = unoGame.participants[0]
-                                                    try:
-                                                        unoGame.currentPlayer = unoGame.participants[unoGame.participants.index(unoGame.currentPlayer)+1]
-                                                    except IndexError:
-                                                        unoGame.currentPlayer = unoGame.participants[0]
-                                                    for participant in unoGame.participants:
-                                                        participant: functions.unoGame.participant
-                                                        if not participant.user.bot:
-                                                            for guild in client.guilds:
-                                                                for category in guild.categories:
-                                                                    if category.name == 'UNO':
-                                                                        for channel in category.text_channels:
-                                                                            for thread in channel.threads:
-                                                                                if thread.name == participant.user.display_name:
-                                                                                    await showHand(client, participant, thread, emojis)
-                                                    await unoGame.channel.send(f'Current Card:')
-                                                    await unoGame.channel.send(functions.getCardEmoji(unoGame.currentCard.color, unoGame.currentCard.type, unoGame.currentCard.number, emojis))
-                                                    await unoGame.channel.send(f'**It is now {unoGame.currentPlayer.user.mention}\'s Turn**')
-                                                    currentGames[f'uno-game-{UNOGameCount}'] = unoGame
+                                                    await playCard(4, client, unoGame, card, specifiedCard, participant, emojis)
                                                     found2 = True
+                                                # Reverse Cards
                                                 elif specifiedCard.type == 'reverse':
-                                                    unoGame.currentCard = specifiedCard
-                                                    participant.hand.remove(card)
-                                                    unoGame.participants.reverse()
-                                                    try:
-                                                        unoGame.currentPlayer = unoGame.participants[unoGame.participants.index(unoGame.currentPlayer)+1]
-                                                    except IndexError:
-                                                        unoGame.currentPlayer = unoGame.participants[0]
-                                                    playOrderMessage = 'Current Play Order:'
-                                                    a = 0
-                                                    for participant in unoGame.participants:
-                                                        participant: functions.unoGame.participant
-                                                        if not participant.user.bot:
-                                                            for guild in client.guilds:
-                                                                for category in guild.categories:
-                                                                    if category.name == 'UNO':
-                                                                        for channel in category.text_channels:
-                                                                            for thread in channel.threads:
-                                                                                if thread.name == participant.user.display_name:
-                                                                                    await showHand(client, participant, thread, emojis)
-                                                                                    a += 1
-                                                                                    if participant == unoGame.currentPlayer:
-                                                                                        playOrderMessage += f'\n{a}: **{participant.user.display_name}**'
-                                                                                        unoGame.currentPlayer = participant
-                                                                                    else: playOrderMessage += f'\n{a}: {participant.user.display_name}'
-                                                    await unoGame.channel.send(playOrderMessage)
-                                                    await unoGame.channel.send(f'Current Card:')
-                                                    await unoGame.channel.send(functions.getCardEmoji(unoGame.currentCard.color, unoGame.currentCard.type, unoGame.currentCard.number, emojis))
-                                                    await unoGame.channel.send(f'**It is now {unoGame.currentPlayer.user.mention}\'s Turn**')
-                                                    currentGames[f'uno-game-{UNOGameCount}'] = unoGame
+                                                    await playCard(5, client, unoGame, card, specifiedCard, participant, emojis)
                                                     found2 = True
-                                                else:    
-                                                    unoGame.currentCard = specifiedCard
-                                                    participant.hand.remove(card)
-                                                    try:
-                                                        unoGame.currentPlayer = unoGame.participants[unoGame.participants.index(unoGame.currentPlayer)+1]
-                                                    except IndexError:
-                                                        unoGame.currentPlayer = unoGame.participants[0]
-                                                    for participant in unoGame.participants:
-                                                        participant: functions.unoGame.participant
-                                                        if not participant.user.bot:
-                                                            for guild in client.guilds:
-                                                                for category in guild.categories:
-                                                                    if category.name == 'UNO':
-                                                                        for channel in category.text_channels:
-                                                                            for thread in channel.threads:
-                                                                                if thread.name == participant.user.display_name:
-                                                                                    await showHand(client, participant, thread, emojis)
-                                                    await unoGame.channel.send(f'Current Card:')
-                                                    await unoGame.channel.send(functions.getCardEmoji(unoGame.currentCard.color, unoGame.currentCard.type, unoGame.currentCard.number, emojis))
-                                                    await unoGame.channel.send(f'**It is now {unoGame.currentPlayer.user.mention}\'s Turn**')
-                                                    currentGames[f'uno-game-{UNOGameCount}'] = unoGame
-                                                    found2 = True
+                                        # If Wild Card Is Current Card
                                         elif specifiedCard.color == unoGame.currentCard.color and unoGame.currentCard.number == 11:
-                                            unoGame.currentCard = specifiedCard
-                                            participant.hand.remove(card)
-                                            try:
-                                                unoGame.currentPlayer = unoGame.participants[unoGame.participants.index(unoGame.currentPlayer)+1]
-                                            except IndexError:
-                                                unoGame.currentPlayer = unoGame.participants[0]
-                                            for participant in unoGame.participants:
-                                                participant: functions.unoGame.participant
-                                                if not participant.user.bot:
-                                                    for guild in client.guilds:
-                                                        for category in guild.categories:
-                                                            if category.name == 'UNO':
-                                                                for channel in category.text_channels:
-                                                                    for thread in channel.threads:
-                                                                        if thread.name == participant.user.display_name:
-                                                                            await showHand(client, participant, thread, emojis)
-                                            await unoGame.channel.send(f'Current Card:')
-                                            await unoGame.channel.send(functions.getCardEmoji(unoGame.currentCard.color, unoGame.currentCard.type, unoGame.currentCard.number, emojis))
-                                            await unoGame.channel.send(f'**It is now {unoGame.currentPlayer.user.mention}\'s Turn**')
-                                            currentGames[f'uno-game-{UNOGameCount}'] = unoGame
-                                            found2 = True
+                                            # Generic Cards
+                                            if specifiedCard.number != 10:
+                                                await playCard(0, client, unoGame, card, specifiedCard, participant, emojis)
+                                                found2 = True
+                                            # Special Cards
+                                            elif specifiedCard.color == unoGame.currentCard.color or specifiedCard.type == unoGame.currentCard.type or specifiedCard.color == 'wild':
+                                                # Pick Cards
+                                                if specifiedCard.type == 'pick':
+                                                    for color in colors:
+                                                        if message.content.endswith(color):
+                                                            await playCard(1, client, unoGame, card, specifiedCard, participant, emojis, color)
+                                                            found2 = True
+                                                # Draw Cards
+                                                elif specifiedCard.type == 'draw':
+                                                    print('draw')
+                                                    # Wild Draw Four
+                                                    if specifiedCard.color == 'wild':
+                                                        for color in colors:
+                                                            if message.content.endswith(color):
+                                                                await playCard(2, client, unoGame, card, specifiedCard, participant, emojis, color)
+                                                                found2 = True
+                                                    else:
+                                                        # Normal Draw Two
+                                                        await playCard(3, client, unoGame, card, specifiedCard, participant, emojis)
+                                                        found2 = True
+                                                # Skip Cards
+                                                elif specifiedCard.type == 'skip':
+                                                    await playCard(4, client, unoGame, card, specifiedCard, participant, emojis)
+                                                    found2 = True
+                                                # Reverse Cards
+                                                elif specifiedCard.type == 'reverse':
+                                                    await playCard(5, client, unoGame, card, specifiedCard, participant, emojis)
+                                                    found2 = True
                                         else:
                                             await message.channel.send('You Cannot Play That Card')
                                             found2 = True

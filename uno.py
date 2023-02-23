@@ -44,12 +44,14 @@ async def playCard(type: int, client: discord.Client, unoGame: functions.unoGame
     if type == 2 or type == 3 or type == 4:
         if type == 2:
             await drawCard(unoGame, unoGame.currentPlayer, 4)
+            unoGame.currentPlayer.uno = False
             message2 = f'{unoGame.currentPlayer.user.display_name} drew 4'
             cards = ''
             for card in unoGame.currentPlayer.hand:
                 cards += '<a:back:1075645084583866368>'
         elif type == 3:
             await drawCard(unoGame, unoGame.currentPlayer, 2)
+            unoGame.currentPlayer.uno = False
             message2 = f'{unoGame.currentPlayer.user.display_name} drew 2'
             cards = ''
             for card in unoGame.currentPlayer.hand:
@@ -153,12 +155,34 @@ async def play(client: discord.Client, channel: discord.TextChannel, message: di
     ]
     global found
     found = False
+    ''' Check if calling UNO '''
+    if message.content.lower() == 'UNO':
+        for guild in client.guilds:
+            for category in guild.categories:
+                if category.name == 'UNO':
+                    for channel in category.text_channels:
+                        if channel == unoGame.channel:
+                            try:
+                                previousPlayer = unoGame.participants[unoGame.participants.index(unoGame.currentPlayer)-1] 
+                            except IndexError:
+                                previousPlayer = unoGame.participants[-1]      
+                            finally:
+                                if previousPlayer.user == message.author and len(previousPlayer.hand) == 1:
+                                    previousPlayer.uno = True
+                                    await unoGame.channel.send('You\'re Safe')
+                                elif previousPlayer.uno == False and len(previousPlayer.hand) == 1:
+                                    await unoGame.channel.send(f'{previousPlayer.user.display_name} forgot to say UNO, draw 2')
+                                    await drawCard(unoGame, previousPlayer, 2)
+                                    previousPlayer.uno = True
+
+                                    
     ''' Check if using Draw Command '''
     if message.content.lower() == 'draw':
         for participant in unoGame.participants:
             participant: functions.unoGame.participant
             if message.author == participant.user and participant == unoGame.currentPlayer:
                 await drawCard(unoGame, participant, 1, True)
+                participant.uno = False
                 for guild in client.guilds:
                     for category in guild.categories:
                         if category.name == 'UNO':

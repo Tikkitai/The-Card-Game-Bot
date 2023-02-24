@@ -5,7 +5,15 @@ import random
 UNOGameCount = 0
 currentGames = {}
 
-def drawCard(game: functions.unoGame, participant: functions.unoGame.participant, amt: int):
+async def endGame(client: discord.Client, unoGame: functions.unoGame, participant: functions.unoGame.participant):
+    await unoGame.channel.send(f'{participant.user.name} WINS!')
+    for guild in client.guilds:
+        for category in guild.categories:
+            if category.name == 'UNO-ARCHIVE':
+                await unoGame.channel.edit(name = f'uno-{int(unoGame.channel.created_at.timestamp())}', category = category, sync_permissions=True)
+
+
+async def drawCard(game: functions.unoGame, participant: functions.unoGame.participant, amt: int, drawCommand: bool = False):
     rangee = range(amt)
     for draw in rangee:
         cardDrawn = random.choice(game.deck)

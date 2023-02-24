@@ -105,28 +105,21 @@ class unoGame():
 global firstCheck
 firstCheck = True
 
-async def checkForCategory(client: discord.Client, name: str):
-        for guild in client.guilds:
-            global exists
-            global firstCheck
-            exists = False
-            for category in guild.categories:
-                if name in category.name:
-                    exists = True
-                    if firstCheck == True:
-                        for channel in category.channels:
-                            await channel.delete()
-            firstCheck = False
-            if not exists:
-                errorMessages = {
-                    'discord.errors.Forbidden': f'Bot in `{guild.name}` requires permission: `MANAGE_CHANNELS`',
-                    'discord.errors.HTTPException': f'An Unknown error occurred for Bot in `{guild.name}`'
-                }
-                try:
-                    await guild.create_category(name)
-                except Exception as exception:
-                    dm = await guild.owner.create_dm()
-                    await dm.send(errorMessages[str(exception.__class__)[8:-2]])
+async def checkForCategory(guild: discord.Guild, name: str):
+    exists = False
+    for category in guild.categories:
+        if category.name == name:
+            exists = True
+
+    if not exists:
+        category = await guild.create_category(name)
+        if name == 'UNO-ARCHIVE':
+            permissions = discord.PermissionOverwrite()
+            permissions.send_messages = False
+            permissions.send_messages_in_threads = False
+            permissions.create_private_threads = False
+            permissions.create_public_threads = False
+            await category.set_permissions(guild.default_role, overwrite=permissions)
 
 def getCardEmoji(color, type, number, emojis: dict):
     emoji: discord.Emoji = emojis[f':{color}_{type}_{number}:']

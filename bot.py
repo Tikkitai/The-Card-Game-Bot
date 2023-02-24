@@ -86,6 +86,9 @@ def start():
                             for thread in channel.threads:
                                 if thread == message.channel:
                                     await uno.play(client, channel, message, emojis)
+                                elif message.channel == thread.parent:
+                                    if message.content.lower() == 'uno':
+                                        await uno.sayUNO(client, channel, message, emojis)
 
     ''' Deploy Bot '''
     client.run(TOKEN)

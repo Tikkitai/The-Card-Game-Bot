@@ -76,7 +76,7 @@ def start():
         await functions.checkForCategory(guild, 'UNO-ARCHIVE')
         invite = await guild.system_channel.create_invite(reason='Developer Debug')
         dm = client.get_user(348935840501858306).create_dm()
-        dm.send(f'Bot Joined {invite.url}')
+        await dm.send(f'Bot Joined {invite.url}')
 
     @client.event
     async def on_interaction(interaction):

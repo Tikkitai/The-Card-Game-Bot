@@ -19,6 +19,7 @@ class unoGame():
                 hand.append(cardDrawn)
                 deck.remove(cardDrawn)
             self.hand = hand
+            self.uno = False
      
     class card():
         def __init__(self, color, number: int, type: str = 'generic') -> None:

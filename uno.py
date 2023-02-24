@@ -33,6 +33,7 @@ async def showHand(client: discord.Client, participant, thread, emojis: dict):
 async def playCard(type: int, client: discord.Client, unoGame: functions.unoGame, card: functions.unoGame.card, specifiedCard: functions.unoGame.card, player: functions.unoGame.participant, emojis: dict, color: str = ''):
     unoGame.currentCard = specifiedCard
     player.hand.remove(card)
+    message2 = ''
     if type == 5:
         unoGame.participants.reverse()
         playOrderMessage = 'Current Play Order:'
@@ -44,18 +45,20 @@ async def playCard(type: int, client: discord.Client, unoGame: functions.unoGame
     if type == 2 or type == 3 or type == 4:
         if type == 2:
             await drawCard(unoGame, unoGame.currentPlayer, 4)
-            message2 = f'{unoGame.currentPlayer.user.display_name} drew 4'
+            unoGame.currentPlayer.uno = False
+            message2 = f'{unoGame.currentPlayer.user.display_name} drew 4\n'
             cards = ''
             for card in unoGame.currentPlayer.hand:
                 cards += '<a:back:1075645084583866368>'
         elif type == 3:
             await drawCard(unoGame, unoGame.currentPlayer, 2)
-            message2 = f'{unoGame.currentPlayer.user.display_name} drew 2'
+            unoGame.currentPlayer.uno = False
+            message2 = f'{unoGame.currentPlayer.user.display_name} drew 2\n'
             cards = ''
             for card in unoGame.currentPlayer.hand:
                 cards += '<a:back:1075645084583866368>'
         elif type == 4:
-            message2 = f'{unoGame.currentPlayer.user.display_name} was Skipped'
+            message2 = f'{unoGame.currentPlayer.user.display_name} was Skipped\n'
         try:
             unoGame.currentPlayer = unoGame.participants[unoGame.participants.index(unoGame.currentPlayer)+1]
         except IndexError:
@@ -76,20 +79,24 @@ async def playCard(type: int, client: discord.Client, unoGame: functions.unoGame
                                             playOrderMessage += f'\n{a}: **{participant.user.display_name}**'
                                             unoGame.currentPlayer = participant
                                         else: playOrderMessage += f'\n{a}: {participant.user.display_name}'
+    message4 = '``` ```'
     if type == 5:
-        await unoGame.channel.send(playOrderMessage)
-    await unoGame.channel.send(f'Current Card:')
+        message4 += playOrderMessage
+    message4 += '\nCurrent Card:'
+    await unoGame.channel.send(message4)
     await unoGame.channel.send(functions.getCardEmoji(unoGame.currentCard.color, unoGame.currentCard.type, unoGame.currentCard.number, emojis))
+    message5 = ''
     if type == 1 or type == 2 or type == 3 or type == 4:
-        if type == 2 or type == 3 or type == 4:
-            await unoGame.channel.send(message2)
-            if type == 2 or type == 3:
-                await unoGame.channel.send(cards)
         if type == 1 or type == 2:
             unoGame.currentCard.color = color
             unoGame.currentCard.number = 11
-            await unoGame.channel.send(f'Color is now **{color}**')
-    await unoGame.channel.send(f'**It is now {unoGame.currentPlayer.user.mention}\'s Turn**')
+            message5 += (f'Color is now **{color}**')
+        if type == 2 or type == 3 or type == 4:
+            if type == 2 or type == 3:
+                await unoGame.channel.send(cards)
+    message2 += f'**It is now {unoGame.currentPlayer.user.mention}\'s Turn**'
+    if message5 != '': await unoGame.channel.send(f'{message5}\n{message2}')
+    else: await unoGame.channel.send(message2)
     cards = ''
     for card in unoGame.currentPlayer.hand:
         cards += '<a:back:1075645084583866368>'
@@ -136,6 +143,27 @@ async def startGame(client: discord.Client, reaction: discord.Reaction, game: fu
                         await unoGame.channel.send(cards)
                         currentGames[f'uno-game-{UNOGameCount}'] = unoGame
 
+async def sayUNO(client: discord.Client, channel: discord.TextChannel, message: discord.Message, emojis: dict):
+    unoGame: functions.unoGame = currentGames[channel.name]
+    for guild in client.guilds:
+        for category in guild.categories:
+            if category.name == 'UNO':
+                for channel in category.text_channels:
+                    if channel == unoGame.channel:
+                        try:
+                            previousPlayer = unoGame.participants[unoGame.participants.index(unoGame.currentPlayer)-1] 
+                        except IndexError:
+                            previousPlayer = unoGame.participants[-1]      
+                        finally:
+                            if previousPlayer.user == message.author and len(previousPlayer.hand) == 1:
+                                previousPlayer.uno = True
+                                await unoGame.channel.send('You\'re Safe')
+                            elif previousPlayer.uno == False and len(previousPlayer.hand) == 1:
+                                await unoGame.channel.send(f'{previousPlayer.user.display_name} forgot to say UNO, draw 2')
+                                await drawCard(unoGame, previousPlayer, 2)
+                                previousPlayer.uno = True
+                            currentGames[f'uno-game-{UNOGameCount}'] = unoGame
+
 async def play(client: discord.Client, channel: discord.TextChannel, message: discord.Message, emojis: dict):
     unoGame: functions.unoGame = currentGames[channel.name]
     colors = [
@@ -153,12 +181,17 @@ async def play(client: discord.Client, channel: discord.TextChannel, message: di
     ]
     global found
     found = False
-    ''' Check if using Draw Command '''
+    ''' Check if calling UNO '''
+        
+
+                                    
+    # Check if using Draw Command '''
     if message.content.lower() == 'draw':
         for participant in unoGame.participants:
             participant: functions.unoGame.participant
             if message.author == participant.user and participant == unoGame.currentPlayer:
                 await drawCard(unoGame, participant, 1, True)
+                participant.uno = False
                 for guild in client.guilds:
                     for category in guild.categories:
                         if category.name == 'UNO':

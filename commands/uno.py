@@ -15,8 +15,10 @@ def import_command():
         description='Start UNO Game'
     )
     async def self(interaction: discord.Interaction):
-        await interaction.response.send_message('React with 👍 to start game',ephemeral=True)
-        message = await interaction.channel.send(embed=discord.Embed(title=f'{interaction.user.name} would like to start an UNO Game', description='React Below to join'))
-        await message.add_reaction('✅')
-        bot.pendingUNOgames.append(functions.unoGame.pending(message, interaction.user))
-        print(bot.pendingUNOgames)
+        if await functions.checkPerms(interaction.guild):
+            await interaction.response.send_message('React with 👍 to start game',ephemeral=True)
+            message = await interaction.channel.send(embed=discord.Embed(title=f'{interaction.user.name} would like to start an UNO Game', description='React Below to join'))
+            await message.add_reaction('✅')
+            bot.pendingUNOgames.append(functions.unoGame.pending(message, interaction.user))
+        else:
+            await interaction.response.send_message(f'Please Contact {interaction.guild.owner.mention} to give the bot the correct permissions', ephemeral=True)

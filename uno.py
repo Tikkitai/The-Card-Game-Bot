@@ -21,16 +21,26 @@ async def drawCard(game: functions.unoGame, participant: functions.unoGame.parti
                     await message.edit(content=cards)
                     break
     
-async def showHand(client: discord.Client, participant, thread, emojis: dict):
+async def showHand(client: discord.Client, participant, thread: discord.Thread, emojis: dict):
     message = f'Cards in user `{participant.user.display_name}`s Hand:'
     message2 = ''
     for card in participant.hand:
         emoji = functions.getCardEmoji(card.color, card.type, card.number, emojis)
         message2 += str(emoji)
-    await thread.send(message)
-    await thread.send(message2)
+    msgcount = 0
+    async for msg in thread.history():
+        msgcount += 1
+    if msgcount <= 1:
+        await thread.send(message)
+        await thread.send(message2)
+    else:
+        async for message in thread.history():
+            message: discord.Message
+            if message.author.bot:
+                await message.edit(content = message2)
+                break
 
-async def playCard(type: int, client: discord.Client, unoGame: functions.unoGame, card: functions.unoGame.card, specifiedCard: functions.unoGame.card, player: functions.unoGame.participant, emojis: dict, color: str = ''):
+async def playCard(type: int, client: discord.Client, unoGame: functions.unoGame, playMessage: discord.Message, card: functions.unoGame.card, specifiedCard: functions.unoGame.card, player: functions.unoGame.participant, emojis: dict, color: str = ''):
     unoGame.currentCard = specifiedCard
     player.hand.remove(card)
     message2 = ''
@@ -73,6 +83,7 @@ async def playCard(type: int, client: discord.Client, unoGame: functions.unoGame
                             for thread in channel.threads:
                                 if thread.name == participant.user.display_name:
                                     await showHand(client, participant, thread, emojis)
+                                    await playMessage.delete()
                                     if type == 5:
                                         a += 1
                                         if participant == unoGame.currentPlayer:
@@ -199,6 +210,7 @@ async def play(client: discord.Client, channel: discord.TextChannel, message: di
                                 for thread in channel.threads:
                                     if thread.name == participant.user.display_name:
                                         await showHand(client, participant, thread, emojis)
+                                        await message.delete()
     else:
         ''' Check If Command represents a Valid Card'''
         for color in colors:
@@ -225,7 +237,7 @@ async def play(client: discord.Client, channel: discord.TextChannel, message: di
                                             if specifiedCard.color == unoGame.currentCard.color or specifiedCard.number == unoGame.currentCard.number or specifiedCard.color == 'wild':
                                                 # Generic Cards
                                                 if specifiedCard.number != 10:
-                                                    await playCard(0, client, unoGame, card, specifiedCard, participant, emojis)
+                                                    await playCard(0, client, unoGame, message, card, specifiedCard, participant, emojis)
                                                     found2 = True
                                                 # Special Cards
                                                 elif specifiedCard.color == unoGame.currentCard.color or specifiedCard.type == unoGame.currentCard.type or specifiedCard.color == 'wild':
@@ -233,7 +245,7 @@ async def play(client: discord.Client, channel: discord.TextChannel, message: di
                                                     if specifiedCard.type == 'pick':
                                                         for color in colors:
                                                             if message.content.endswith(color):
-                                                                await playCard(1, client, unoGame, card, specifiedCard, participant, emojis, color)
+                                                                await playCard(1, client, unoGame, message, card, specifiedCard, participant, emojis, color)
                                                                 found2 = True
                                                     # Draw Cards
                                                     elif specifiedCard.type == 'draw':
@@ -242,25 +254,25 @@ async def play(client: discord.Client, channel: discord.TextChannel, message: di
                                                         if specifiedCard.color == 'wild':
                                                             for color in colors:
                                                                 if message.content.endswith(color):
-                                                                    await playCard(2, client, unoGame, card, specifiedCard, participant, emojis, color)
+                                                                    await playCard(2, client, unoGame, message, card, specifiedCard, participant, emojis, color)
                                                                     found2 = True
                                                         else:
                                                             # Normal Draw Two
-                                                            await playCard(3, client, unoGame, card, specifiedCard, participant, emojis)
+                                                            await playCard(3, client, unoGame, message, card, specifiedCard, participant, emojis)
                                                             found2 = True
                                                     # Skip Cards
                                                     elif specifiedCard.type == 'skip':
-                                                        await playCard(4, client, unoGame, card, specifiedCard, participant, emojis)
+                                                        await playCard(4, client, unoGame, message, card, specifiedCard, participant, emojis)
                                                         found2 = True
                                                     # Reverse Cards
                                                     elif specifiedCard.type == 'reverse':
-                                                        await playCard(5, client, unoGame, card, specifiedCard, participant, emojis)
+                                                        await playCard(5, client, unoGame, message, card, specifiedCard, participant, emojis)
                                                         found2 = True
                                             # If Wild Card Is Current Card
                                             elif specifiedCard.color == unoGame.currentCard.color and unoGame.currentCard.number == 11:
                                                 # Generic Cards
                                                 if specifiedCard.number != 10:
-                                                    await playCard(0, client, unoGame, card, specifiedCard, participant, emojis)
+                                                    await playCard(0, client, unoGame, message, card, specifiedCard, participant, emojis)
                                                     found2 = True
                                                 # Special Cards
                                                 elif specifiedCard.color == unoGame.currentCard.color or specifiedCard.type == unoGame.currentCard.type or specifiedCard.color == 'wild':
@@ -268,7 +280,7 @@ async def play(client: discord.Client, channel: discord.TextChannel, message: di
                                                     if specifiedCard.type == 'pick':
                                                         for color in colors:
                                                             if message.content.endswith(color):
-                                                                await playCard(1, client, unoGame, card, specifiedCard, participant, emojis, color)
+                                                                await playCard(1, client, unoGame, message, card, specifiedCard, participant, emojis, color)
                                                                 found2 = True
                                                     # Draw Cards
                                                     elif specifiedCard.type == 'draw':
@@ -277,26 +289,30 @@ async def play(client: discord.Client, channel: discord.TextChannel, message: di
                                                         if specifiedCard.color == 'wild':
                                                             for color in colors:
                                                                 if message.content.endswith(color):
-                                                                    await playCard(2, client, unoGame, card, specifiedCard, participant, emojis, color)
+                                                                    await playCard(2, client, unoGame, message, card, specifiedCard, participant, emojis, color)
                                                                     found2 = True
                                                         else:
                                                             # Normal Draw Two
-                                                            await playCard(3, client, unoGame, card, specifiedCard, participant, emojis)
+                                                            await playCard(3, client, unoGame, message, card, specifiedCard, participant, emojis)
                                                             found2 = True
                                                     # Skip Cards
                                                     elif specifiedCard.type == 'skip':
-                                                        await playCard(4, client, unoGame, card, specifiedCard, participant, emojis)
+                                                        await playCard(4, client, unoGame, message, card, specifiedCard, participant, emojis)
                                                         found2 = True
                                                     # Reverse Cards
                                                     elif specifiedCard.type == 'reverse':
-                                                        await playCard(5, client, unoGame, card, specifiedCard, participant, emojis)
+                                                        await playCard(5, client, unoGame, message, card, specifiedCard, participant, emojis)
                                                         found2 = True
                                             else:
-                                                await message.channel.send('You Cannot Play That Card')
+                                                response = await message.channel.send('You Cannot Play That Card')
+                                                await response.delete(delay = 1)
+                                                await message.delete()
                                                 found2 = True
                                         if found2: break
                                 else:
-                                    await message.channel.send('WAIT YOUR TURN')
+                                    response = await message.channel.send('WAIT YOUR TURN')
+                                    await response.delete(delay = 1)
+                                    await message.delete()
                                     found2 = True
                                 if found2: break
                     if found: break
@@ -304,10 +320,14 @@ async def play(client: discord.Client, channel: discord.TextChannel, message: di
             if found: break
 
         if not found:
-            await message.channel.send('not a card')
+            response = await message.channel.send('not a card')
+            await response.delete(delay = 1)
+            await message.delete()
 
         if not found2:
-            await message.channel.send('you dont have this card')
+            response = await message.channel.send('you dont have this card')
+            await response.delete(delay = 1)
+            await message.delete()
 
 
 

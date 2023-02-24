@@ -103,31 +103,43 @@ class unoGame():
 #     print(f'{card.color} {card.type} {card.number}')
 # print(f'{len(testGame.deck)} total cards')
 
-global firstCheck
-firstCheck = True
+
+async def checkPerms(guild: discord.Guild):
+    returnn = True
+    if guild.self_role.permissions.manage_channels == False:
+        dm = await guild.owner.create_dm()
+        await dm.send(f'Bot in `{guild.name}` requires permission: `MANAGE_CHANNELS`')
+        returnn = False
+
+    if guild.self_role.permissions.manage_messages == False:
+        dm = await guild.owner.create_dm()
+        await dm.send(f'Bot in `{guild.name}` requires permission: `MANAGE_MESSAGES`')
+        returnn = False
+    
+    return returnn
 
 async def checkForCategory(client: discord.Client, name: str):
-        for guild in client.guilds:
-            global exists
-            global firstCheck
-            exists = False
-            for category in guild.categories:
-                if name in category.name:
-                    exists = True
-                    if firstCheck == True:
-                        for channel in category.channels:
-                            await channel.delete()
-            firstCheck = False
-            if not exists:
-                errorMessages = {
-                    'discord.errors.Forbidden': f'Bot in `{guild.name}` requires permission: `MANAGE_CHANNELS`',
-                    'discord.errors.HTTPException': f'An Unknown error occurred for Bot in `{guild.name}`'
-                }
-                try:
-                    await guild.create_category(name)
-                except Exception as exception:
-                    dm = await guild.owner.create_dm()
-                    await dm.send(errorMessages[str(exception.__class__)[8:-2]])
+    global exists
+    exists = False
+    for guild in client.guilds:
+        for category in guild.categories:
+            if name in category.name:
+                exists = True
+
+        if not exists:
+            errorMessages = {
+                'discord.errors.Forbidden': f'Bot in `{guild.name}` requires permission: `MANAGE_CHANNELS`',
+                'discord.errors.HTTPException': f'An Unknown error occurred for Bot in `{guild.name}`'
+            }
+            try:
+                await guild.create_category(name)
+            except Exception as exception:
+                dm = await guild.owner.create_dm()
+                await dm.send(errorMessages[str(exception.__class__)[8:-2]])
+
+            
+            
+
 
 def getCardEmoji(color, type, number, emojis: dict):
     emoji: discord.Emoji = emojis[f':{color}_{type}_{number}:']

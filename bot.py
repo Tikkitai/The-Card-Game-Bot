@@ -40,10 +40,14 @@ def start():
     @client.event
     async def on_ready():
         print('Running')
-
+        
         ''' Set Bot Status '''
         await client.change_presence(activity=discord.Activity(type=discord.ActivityType.playing, name="card games"))
         print('Bot Presence changed to \"Playing card games\"')
+        for guild in client.guilds:
+            await functions.checkPerms(guild)
+        await functions.checkForCategory(client, 'UNO')
+        await functions.checkForCategory(client, 'UNO-ARCHIVE')
 
         ''' Load Commands '''
         for command in listdir('commands'):
@@ -67,7 +71,7 @@ def start():
 
     @client.event
     async def on_interaction(interaction):
-        await functions.checkForCategory(client, 'UNO')
+        pass
 
     @client.event
     async def on_reaction_add(reaction: discord.Reaction, user: discord.User):
@@ -77,7 +81,7 @@ def start():
                 await uno.startGame(client, reaction, game, emojis)
 
     @client.event
-    async def on_message(message):
+    async def on_message(message: discord.Message):
         if not message.author.bot:
             for guild in client.guilds:
                 for category in guild.categories:
@@ -86,6 +90,9 @@ def start():
                             for thread in channel.threads:
                                 if thread == message.channel:
                                     await uno.play(client, channel, message, emojis)
+                                elif message.channel == thread.parent:
+                                    if message.content.lower() == 'uno':
+                                        await uno.sayUNO(client, channel, message, emojis)
 
     ''' Deploy Bot '''
     client.run(TOKEN)

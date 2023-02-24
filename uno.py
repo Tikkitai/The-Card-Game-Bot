@@ -5,6 +5,14 @@ import random
 UNOGameCount = 0
 currentGames = {}
 
+async def endGame(client: discord.Client, unoGame: functions.unoGame, participant: functions.unoGame.participant):
+    await unoGame.channel.send(f'{participant.user.name} WINS!')
+    for guild in client.guilds:
+        for category in guild.categories:
+            if category.name == 'UNO-ARCHIVE':
+                await unoGame.channel.edit(name = f'uno-{int(unoGame.channel.created_at.timestamp())}', category = category)
+
+
 async def drawCard(game: functions.unoGame, participant: functions.unoGame.participant, amt: int, drawCommand: bool = False):
     rangee = range(amt)
     for draw in rangee:
@@ -22,16 +30,20 @@ async def drawCard(game: functions.unoGame, participant: functions.unoGame.parti
                     break
     
 async def showHand(client: discord.Client, participant, thread: discord.Thread, emojis: dict):
-    message = f'Cards in user `{participant.user.display_name}`s Hand:'
+    message1 = f'Cards in user `{participant.user.display_name}`s Hand:'
     message2 = ''
-    for card in participant.hand:
-        emoji = functions.getCardEmoji(card.color, card.type, card.number, emojis)
-        message2 += str(emoji)
+    if len(participant.hand) == 0:
+        message2 = 'YOU WIN!'
+    else:
+        for card in participant.hand:
+            emoji = functions.getCardEmoji(card.color, card.type, card.number, emojis)
+            message2 += str(emoji)
+
     msgcount = 0
     async for msg in thread.history():
         msgcount += 1
     if msgcount <= 1:
-        await thread.send(message)
+        await thread.send(message1)
         await thread.send(message2)
     else:
         async for message in thread.history():
@@ -56,17 +68,17 @@ async def playCard(type: int, client: discord.Client, unoGame: functions.unoGame
         if type == 2:
             await drawCard(unoGame, unoGame.currentPlayer, 4)
             unoGame.currentPlayer.uno = False
-            message2 = f'{unoGame.currentPlayer.user.display_name} drew 4\n'
             cards = ''
             for card in unoGame.currentPlayer.hand:
                 cards += '<a:back:1075645084583866368>'
+            message2 = f'{unoGame.currentPlayer.user.display_name} drew 4\n{cards}\n'
         elif type == 3:
             await drawCard(unoGame, unoGame.currentPlayer, 2)
             unoGame.currentPlayer.uno = False
-            message2 = f'{unoGame.currentPlayer.user.display_name} drew 2\n'
             cards = ''
             for card in unoGame.currentPlayer.hand:
                 cards += '<a:back:1075645084583866368>'
+            message2 = f'{unoGame.currentPlayer.user.display_name} drew 2\n{cards}\n'
         elif type == 4:
             message2 = f'{unoGame.currentPlayer.user.display_name} was Skipped\n'
         try:
@@ -83,43 +95,50 @@ async def playCard(type: int, client: discord.Client, unoGame: functions.unoGame
                             for thread in channel.threads:
                                 if thread.name == participant.user.display_name:
                                     await showHand(client, participant, thread, emojis)
-                                    await playMessage.delete()
                                     if type == 5:
                                         a += 1
                                         if participant == unoGame.currentPlayer:
                                             playOrderMessage += f'\n{a}: **{participant.user.display_name}**'
                                             unoGame.currentPlayer = participant
                                         else: playOrderMessage += f'\n{a}: {participant.user.display_name}'
+    await playMessage.delete()
     message4 = '``` ```'
     if type == 5:
         message4 += playOrderMessage
     message4 += '\nCurrent Card:'
     await unoGame.channel.send(message4)
     await unoGame.channel.send(functions.getCardEmoji(unoGame.currentCard.color, unoGame.currentCard.type, unoGame.currentCard.number, emojis))
-    message5 = ''
-    if type == 1 or type == 2 or type == 3 or type == 4:
-        if type == 1 or type == 2:
-            unoGame.currentCard.color = color
-            unoGame.currentCard.number = 11
-            message5 += (f'Color is now **{color}**')
-        if type == 2 or type == 3 or type == 4:
-            if type == 2 or type == 3:
-                await unoGame.channel.send(cards)
-    message2 += f'**It is now {unoGame.currentPlayer.user.mention}\'s Turn**'
-    if message5 != '': await unoGame.channel.send(f'{message5}\n{message2}')
-    else: await unoGame.channel.send(message2)
-    cards = ''
-    for card in unoGame.currentPlayer.hand:
-        cards += '<a:back:1075645084583866368>'
-    await unoGame.channel.send(cards)
-    currentGames[f'uno-game-{UNOGameCount}'] = unoGame
+    if len(player.hand) == 0:
+        for guild in client.guilds:
+            for category in guild.categories:
+                if category.name == 'UNO':
+                    for channel in category.text_channels:
+                        for thread in channel.threads:
+                            if thread.name == player.user.display_name:
+                                await showHand(client, player, thread, emojis)
+        await endGame(client, unoGame, player)
+    else:
+        message5 = ''
+        if type == 1 or type == 2 or type == 3 or type == 4:
+            if type == 1 or type == 2:
+                unoGame.currentCard.color = color
+                unoGame.currentCard.number = 11
+                message5 += (f'Color is now **{color}**')
+        message2 += f'**It is now {unoGame.currentPlayer.user.mention}\'s Turn**'
+        if message5 != '': await unoGame.channel.send(f'{message5}\n{message2}')
+        else: await unoGame.channel.send(message2)
+        cards = ''
+        for card in unoGame.currentPlayer.hand:
+            cards += '<a:back:1075645084583866368>'
+        await unoGame.channel.send(cards)
+        currentGames[f'uno-game-{UNOGameCount}'] = unoGame
 
 async def startGame(client: discord.Client, reaction: discord.Reaction, game: functions.unoGame.pending, emojis: dict):
     for guild in client.guilds:
         global exists
         exists = False
         for category in guild.categories:
-            if 'UNO' in category.name:
+            if category.name == 'UNO':
                 exists = True
                 global UNOGameCount
                 UNOGameCount += 1
@@ -214,10 +233,8 @@ async def play(client: discord.Client, channel: discord.TextChannel, message: di
     else:
         ''' Check If Command represents a Valid Card'''
         for color in colors:
-            print(color)
             rangee = range(10)
             for number in rangee:
-                print(number)
                 for specialCard in specialCards:
                     if color in message.content.lower() and str(number) in message.content.lower() or color in message.content.lower() and specialCard in message.content.lower():
                         if color in message.content.lower() and specialCard in message.content.lower():
@@ -249,7 +266,6 @@ async def play(client: discord.Client, channel: discord.TextChannel, message: di
                                                                 found2 = True
                                                     # Draw Cards
                                                     elif specifiedCard.type == 'draw':
-                                                        print('draw')
                                                         # Wild Draw Four
                                                         if specifiedCard.color == 'wild':
                                                             for color in colors:
@@ -284,7 +300,6 @@ async def play(client: discord.Client, channel: discord.TextChannel, message: di
                                                                 found2 = True
                                                     # Draw Cards
                                                     elif specifiedCard.type == 'draw':
-                                                        print('draw')
                                                         # Wild Draw Four
                                                         if specifiedCard.color == 'wild':
                                                             for color in colors:

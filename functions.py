@@ -31,8 +31,8 @@ class unoGame():
 
     class pending():
         def __init__(self, message, leader) -> None:
-            self.message = message
-            self.leader = leader
+            self.message: discord.Message = message
+            self.leader: discord.Member = leader
 
     def __init__(self, channel, leader, members) -> None:
         colors = [
@@ -48,8 +48,8 @@ class unoGame():
             'draw',
             'pick'
         ]
-        self.channel = channel
-        self.leader = leader
+        self.channel: discord.TextChannel = channel
+        self.leader: discord.Member = leader
         deck = []
         rangee = range(10)
         for number in rangee:
@@ -91,11 +91,10 @@ class unoGame():
                 self.deck.remove(card)
 
         self.participants = participants
-        self.playOrder = 'cw'
         self.currentPlayer: unoGame.participant
 
         drawnCard = random.choice(self.deck)
-        self.currentCard = drawnCard
+        self.currentCard: unoGame.card = drawnCard
         self.deck.remove(drawnCard)
 
 # testGame = unoGame(None,None,None)
@@ -105,41 +104,36 @@ class unoGame():
 
 
 async def checkPerms(guild: discord.Guild):
+    requiredPermissions = [
+        ('manage_channels', True),
+        ('manage_messages', True),
+        ('manage_roles', True),
+    ]
     returnn = True
-    if guild.self_role.permissions.manage_channels == False:
-        dm = await guild.owner.create_dm()
-        await dm.send(f'Bot in `{guild.name}` requires permission: `MANAGE_CHANNELS`')
-        returnn = False
-
-    if guild.self_role.permissions.manage_messages == False:
-        dm = await guild.owner.create_dm()
-        await dm.send(f'Bot in `{guild.name}` requires permission: `MANAGE_MESSAGES`')
-        returnn = False
-    
+    for permission in requiredPermissions:
+        permissions = iter(guild.self_role.permissions)
+        if permission not in permissions:
+            dm = await guild.owner.create_dm()
+            await dm.send(f'Bot in `{guild.name}` requires permission: `{permission[0]}`')
+            returnn = False
     return returnn
 
 async def checkForCategory(client: discord.Client, name: str):
-    global exists
     exists = False
     for guild in client.guilds:
         for category in guild.categories:
-            if name in category.name:
+            if category.name == name:
                 exists = True
 
         if not exists:
-            errorMessages = {
-                'discord.errors.Forbidden': f'Bot in `{guild.name}` requires permission: `MANAGE_CHANNELS`',
-                'discord.errors.HTTPException': f'An Unknown error occurred for Bot in `{guild.name}`'
-            }
-            try:
-                await guild.create_category(name)
-            except Exception as exception:
-                dm = await guild.owner.create_dm()
-                await dm.send(errorMessages[str(exception.__class__)[8:-2]])
-
-            
-            
-
+            category = await guild.create_category(name)
+            if name == 'UNO-ARCHIVE':
+                permissions = discord.PermissionOverwrite()
+                permissions.send_messages = False
+                permissions.send_messages_in_threads = False
+                permissions.create_private_threads = False
+                permissions.create_public_threads = False
+                await category.set_permissions(guild.default_role, overwrite=permissions)
 
 def getCardEmoji(color, type, number, emojis: dict):
     emoji: discord.Emoji = emojis[f':{color}_{type}_{number}:']

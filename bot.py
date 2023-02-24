@@ -44,8 +44,10 @@ def start():
         ''' Set Bot Status '''
         await client.change_presence(activity=discord.Activity(type=discord.ActivityType.playing, name="card games"))
         print('Bot Presence changed to \"Playing card games\"')
-
+        for guild in client.guilds:
+            await functions.checkPerms(guild)
         await functions.checkForCategory(client, 'UNO')
+        await functions.checkForCategory(client, 'UNO-ARCHIVE')
 
         ''' Load Commands '''
         for command in listdir('commands'):

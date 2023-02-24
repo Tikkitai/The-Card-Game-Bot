@@ -19,6 +19,7 @@ class unoGame():
                 hand.append(cardDrawn)
                 deck.remove(cardDrawn)
             self.hand = hand
+            self.uno = False
      
     class card():
         def __init__(self, color, number: int, type: str = 'generic') -> None:
@@ -30,8 +31,8 @@ class unoGame():
 
     class pending():
         def __init__(self, message, leader) -> None:
-            self.message = message
-            self.leader = leader
+            self.message: discord.Message = message
+            self.leader: discord.Member = leader
 
     def __init__(self, channel, leader, members) -> None:
         colors = [
@@ -47,8 +48,8 @@ class unoGame():
             'draw',
             'pick'
         ]
-        self.channel = channel
-        self.leader = leader
+        self.channel: discord.TextChannel = channel
+        self.leader: discord.Member = leader
         deck = []
         rangee = range(10)
         for number in rangee:
@@ -90,11 +91,10 @@ class unoGame():
                 self.deck.remove(card)
 
         self.participants = participants
-        self.playOrder = 'cw'
         self.currentPlayer: unoGame.participant
 
         drawnCard = random.choice(self.deck)
-        self.currentCard = drawnCard
+        self.currentCard: unoGame.card = drawnCard
         self.deck.remove(drawnCard)
 
 # testGame = unoGame(None,None,None)
@@ -102,8 +102,21 @@ class unoGame():
 #     print(f'{card.color} {card.type} {card.number}')
 # print(f'{len(testGame.deck)} total cards')
 
-global firstCheck
-firstCheck = True
+
+async def checkPerms(guild: discord.Guild):
+    requiredPermissions = [
+        ('manage_channels', True),
+        ('manage_messages', True),
+        ('manage_roles', True),
+    ]
+    returnn = True
+    for permission in requiredPermissions:
+        permissions = iter(guild.self_role.permissions)
+        if permission not in permissions:
+            dm = await guild.owner.create_dm()
+            await dm.send(f'Bot in `{guild.name}` requires permission: `{permission[0]}`')
+            returnn = False
+    return returnn
 
 async def checkForCategory(guild: discord.Guild, name: str):
     exists = False

